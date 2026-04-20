@@ -36,7 +36,7 @@ export default function Landing() {
             <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
               <div className="flex flex-col justify-between px-6 py-7 lg:px-10 lg:py-10">
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.32em] text-white/42">Retention Lab</p>
+                  <p className="text-[11px] uppercase tracking-[0.32em] text-white/42">수정 연구소</p>
                   <div className="mt-6 inline-flex rounded-full border border-[#10af29]/30 bg-[#10af29]/10 px-4 py-2 text-sm text-[#9bf5ad]">
                     SQL 세그먼트 설계와 CRM 메시지 판단을 함께 훈련하는 실무형 학습 앱
                   </div>

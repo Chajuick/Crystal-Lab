@@ -144,7 +144,7 @@ function createProducts(): ProductRow[] {
   );
 }
 
-function createCustomers(total = 132): Customer[] {
+function createCustomers(total = 200): Customer[] {
   const rand = rng(27);
   return Array.from({ length: total }, (_, index) => {
     const age = 21 + Math.floor(rand() * 31) + (index % 9 === 0 ? 10 : 0);
@@ -167,6 +167,11 @@ function createCustomers(total = 132): Customer[] {
       kakao_opt_in: kakaoOptIn as 0 | 1,
       marketing_opt_in: (pushOptIn || kakaoOptIn || rand() > 0.35 ? 1 : 0) as 0 | 1,
       dormant_status: dormant as 0 | 1,
+      // enriched after orders are generated — see createWarehouse()
+      last_order_date: null,
+      days_since_last_order: null,
+      total_order_count: 0,
+      total_spent: 0,
     };
   });
 }
@@ -315,9 +320,40 @@ function createWishlist(customers: Customer[], products: ProductRow[]): Wishlist
 export function createWarehouse(): Warehouse {
   const companies = createCompanies();
   const product_catalog = createProducts();
-  const customers = createCustomers();
+  const rawCustomers = createCustomers();
+  const orders = createOrders(rawCustomers, product_catalog);
+
+  // 2차 패스: 주문 데이터로 customers에 RFM 핵심 필드 주입
+  type OrderStats = { count: number; totalSpent: number; lastDate: string };
+  const statsMap = new Map<number, OrderStats>();
+  for (const order of orders) {
+    if (order.order_status === "cancelled") continue;
+    const prev = statsMap.get(order.customer_id);
+    if (!prev) {
+      statsMap.set(order.customer_id, { count: 1, totalSpent: order.order_amount, lastDate: order.ordered_at });
+    } else {
+      prev.count++;
+      prev.totalSpent += order.order_amount;
+      if (order.ordered_at > prev.lastDate) prev.lastDate = order.ordered_at;
+    }
+  }
+
+  const customers: Customer[] = rawCustomers.map((c) => {
+    const stats = statsMap.get(c.customer_id);
+    const lastOrderDate = stats?.lastDate ?? null;
+    const daysSince = lastOrderDate
+      ? Math.round((BASE_DATE.getTime() - new Date(lastOrderDate).getTime()) / 86400000)
+      : null;
+    return {
+      ...c,
+      last_order_date: lastOrderDate,
+      days_since_last_order: daysSince,
+      total_order_count: stats?.count ?? 0,
+      total_spent: stats?.totalSpent ?? 0,
+    };
+  });
+
   const sessions = createSessions(customers);
-  const orders = createOrders(customers, product_catalog);
   const carts = createCarts(customers, product_catalog);
   const message_logs = createMessageLogs(customers);
   const customer_category_interest = createInterests(customers, product_catalog);

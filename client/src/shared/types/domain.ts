@@ -26,6 +26,10 @@ export interface Customer {
   kakao_opt_in: 0 | 1;
   marketing_opt_in: 0 | 1;
   dormant_status: 0 | 1;
+  last_order_date: string | null;
+  days_since_last_order: number | null;
+  total_order_count: number;
+  total_spent: number;
 }
 
 export interface SessionRow {

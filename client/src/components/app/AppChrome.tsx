@@ -38,7 +38,7 @@ export function AppChrome({ title, description, children }: AppChromeProps) {
           <Card className="border-white/10 bg-[#0a0a0a] text-white shadow-[0_20px_80px_rgba(0,0,0,0.45)]">
             <div className="space-y-6 p-5">
               <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.28em] text-white/45">
-                <span>Retention Lab</span>
+                <span>수정 연구소</span>
                 <span>App</span>
               </div>
               <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
