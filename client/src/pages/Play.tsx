@@ -69,7 +69,7 @@ export default function Play() {
                 <p className="mt-2 text-sm leading-7 text-muted-foreground">{currentScenario.objective}</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button className="rounded-full bg-[#10af29] text-white hover:bg-[#0d9823]" onClick={() => prepareMission(selectedChapter)}>
+                <Button className="rounded-full bg-[#10af29] text-white hover:bg-[#0d9823]" onClick={() => prepareMission(selectedChapter, undefined, "freeplay")}>
                   이 설정으로 시작
                 </Button>
                 <Button className="rounded-full" variant="outline" onClick={rollMission}>
@@ -97,7 +97,7 @@ export default function Play() {
               <div className="flex flex-wrap gap-2">
                 <Button
                   className="rounded-full bg-[#10af29] text-white hover:bg-[#0d9823]"
-                  onClick={() => prepareMission(todayScenario.chapter, getTodayChallengeSeed())}
+                  onClick={() => prepareMission(todayScenario.chapter, getTodayChallengeSeed(), "daily")}
                 >
                   오늘의 미션 불러오기
                 </Button>

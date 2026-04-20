@@ -72,7 +72,7 @@ export function MissionWorkspace({
   subheading = "데이터 탐색부터 SQL 실행, 메시지 작성, 결과 리포트까지 한 흐름으로 수행합니다.",
 }: MissionWorkspaceProps) {
   const warehouse = useMemo(() => getWarehouse(), []);
-  const { progress, missionSeed, selectedChapter, rollMission, saveRun } = useRetentionLabStore();
+  const { progress, missionSeed, selectedChapter, playMode, rollMission, saveRun } = useRetentionLabStore();
   const scenario = useMemo(() => generateScenario(selectedChapter, missionSeed), [missionSeed, selectedChapter]);
   const company = useMemo(() => getCompanyById(scenario.companyId), [scenario.companyId]);
   const product = useMemo(() => getProductById(scenario.productId), [scenario.productId]);
@@ -184,7 +184,18 @@ export function MissionWorkspace({
       <Card className="border-border bg-card">
         <CardContent className="grid gap-4 p-5 lg:grid-cols-[0.9fr_1.1fr] lg:p-6">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.28em] text-foreground/50">{heading}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[11px] uppercase tracking-[0.28em] text-foreground/50">{heading}</p>
+              <Badge className={`rounded-full border text-[11px] uppercase tracking-[0.18em] ${
+                playMode === "chapter"
+                  ? "border-[#10af29]/35 bg-[#10af29]/10 text-[#0d9823] dark:text-[#9bf5ad]"
+                  : playMode === "daily"
+                    ? "border-amber-400/40 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+                    : "border-border bg-muted text-muted-foreground"
+              }`}>
+                {playMode === "chapter" ? "챕터 모드" : playMode === "daily" ? "오늘의 미션" : "자유 플레이"}
+              </Badge>
+            </div>
             <h3 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-foreground">{scenario.title}</h3>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground">{subheading}</p>
             <p className="mt-4 text-sm leading-7 text-foreground/70">{scenario.objective}</p>
@@ -313,9 +324,11 @@ export function MissionWorkspace({
                 <Button onClick={() => setSql(getStarterSql(scenario))} variant="outline" className="rounded-full border-border">
                   예시 불러오기
                 </Button>
-                <Button onClick={rollMission} variant="outline" className="rounded-full border-border">
-                  <RefreshCw className="mr-2 size-4" /> 다른 미션
-                </Button>
+                {playMode !== "chapter" && (
+                  <Button onClick={rollMission} variant="outline" className="rounded-full border-border">
+                    <RefreshCw className="mr-2 size-4" /> 다른 미션
+                  </Button>
+                )}
                 <Button
                   onClick={() => setSql(`${sql}\n-- Hint: ${scenario.requiredRules[0]?.sqlHint ?? "필수 조건부터 반영하세요."}`)}
                   variant="outline"

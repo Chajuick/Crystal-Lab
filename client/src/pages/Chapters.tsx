@@ -1,7 +1,8 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { LockKeyhole, Star } from "lucide-react";
 import { useLocation } from "wouter";
 import { AppChrome } from "@/components/app/AppChrome";
+import { MissionWorkspace } from "@/components/app/MissionWorkspace";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,7 +22,8 @@ function getStars(progress: number) {
 export default function Chapters() {
   const [, navigate] = useLocation();
   const { isLoggedIn } = useLocalSession();
-  const { progress, prepareMission } = useRetentionLabStore();
+  const { progress, prepareMission, playMode, selectedChapter } = useRetentionLabStore();
+  const workspaceRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -49,15 +51,24 @@ export default function Chapters() {
     [progress.chapterProgress, progress.totalScore],
   );
 
+  function handleStartChapter(key: ChapterKey) {
+    prepareMission(key, undefined, "chapter");
+    setTimeout(() => {
+      workspaceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }
+
   if (!isLoggedIn) {
     return null;
   }
+
+  const activeChapter = playMode === "chapter" ? chapterStages.find((c) => c.key === selectedChapter) : null;
 
   return (
     <AppChrome title="챕터" description="챕터는 정식 성장형 스테이지 모드입니다. 잠금 상태, 별 개수, 난이도, 진행률을 확인하고 원하는 챕터로 진입할 수 있습니다.">
       <div className="space-y-4">
         {chapterStages.map((chapter) => (
-          <Card key={chapter.key} className="border-border bg-card">
+          <Card key={chapter.key} className={`border-bg-card ${playMode === "chapter" && selectedChapter === chapter.key ? "border-[#10af29]/40 ring-1 ring-[#10af29]/20" : "border-border bg-card"}`}>
             <CardContent className="grid gap-5 p-5 lg:grid-cols-[0.9fr_1.1fr] lg:p-6">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -65,6 +76,9 @@ export default function Chapters() {
                   <Badge className={`rounded-full border ${chapter.unlocked ? "border-[#10af29]/35 bg-[#10af29]/10 text-[#0d9823] dark:text-[#9bf5ad]" : "border-border bg-muted text-muted-foreground"}`}>
                     {chapter.unlocked ? "진입 가능" : `해금 점수 ${chapter.minScore}`}
                   </Badge>
+                  {playMode === "chapter" && selectedChapter === chapter.key && (
+                    <Badge className="rounded-full border border-[#10af29]/35 bg-[#10af29]/10 text-[#0d9823] dark:text-[#9bf5ad]">진행 중</Badge>
+                  )}
                 </div>
                 <h2 className="mt-4 text-3xl font-semibold tracking-[-0.05em] text-foreground">{chapter.description}</h2>
                 <p className="mt-3 text-sm leading-7 text-muted-foreground">보너스 목표: {chapter.bonus}</p>
@@ -93,13 +107,10 @@ export default function Chapters() {
 
                 <Button
                   disabled={!chapter.unlocked}
-                  onClick={() => {
-                    prepareMission(chapter.key as ChapterKey);
-                    navigate("/app/play");
-                  }}
+                  onClick={() => handleStartChapter(chapter.key as ChapterKey)}
                   className="mt-6 rounded-full bg-[#10af29] text-white hover:bg-[#0d9823] disabled:opacity-40"
                 >
-                  {chapter.unlocked ? "이 챕터 플레이" : "점수 달성 후 해금"}
+                  {playMode === "chapter" && selectedChapter === chapter.key ? "이 챕터 다시 시작" : chapter.unlocked ? "이 챕터 플레이" : "점수 달성 후 해금"}
                 </Button>
               </div>
 
@@ -127,6 +138,16 @@ export default function Chapters() {
             </CardContent>
           </Card>
         ))}
+
+        {/* 챕터 워크스페이스 — 챕터 선택 시 인라인으로 표시 */}
+        {activeChapter && (
+          <div ref={workspaceRef} className="scroll-mt-4">
+            <MissionWorkspace
+              heading={`${activeChapter.label} · 챕터 모드`}
+              subheading={`${activeChapter.description} 지금 선택한 챕터의 미션을 바로 수행합니다.`}
+            />
+          </div>
+        )}
       </div>
     </AppChrome>
   );

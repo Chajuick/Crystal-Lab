@@ -48,13 +48,16 @@ function unlock(progress: PlayerProgress, id: string) {
   return progress.achievements.map((item) => (item.id === id ? { ...item, unlocked: true } : item));
 }
 
+export type PlayMode = "freeplay" | "chapter" | "daily";
+
 interface RetentionLabState {
   progress: PlayerProgress;
   missionSeed: number;
   selectedChapter: ChapterKey;
+  playMode: PlayMode;
   setSelectedChapter: (chapter: ChapterKey) => void;
   setMissionSeed: (seed: number) => void;
-  prepareMission: (chapter: ChapterKey, seed?: number) => void;
+  prepareMission: (chapter: ChapterKey, seed?: number, mode?: PlayMode) => void;
   rollMission: () => void;
   saveRun: (record: PlayerRunRecord) => void;
   resetProgress: () => void;
@@ -66,12 +69,14 @@ export const useRetentionLabStore = create<RetentionLabState>()(
       progress: createInitialProgress(),
       missionSeed: 7,
       selectedChapter: "foundation",
+      playMode: "freeplay",
       setSelectedChapter: (chapter) => set({ selectedChapter: chapter }),
       setMissionSeed: (seed) => set({ missionSeed: seed }),
-      prepareMission: (chapter, seed) =>
+      prepareMission: (chapter, seed, mode = "freeplay") =>
         set((state) => ({
           selectedChapter: chapter,
           missionSeed: seed ?? state.missionSeed,
+          playMode: mode,
         })),
       rollMission: () => set((state) => ({ missionSeed: state.missionSeed + 1 })),
       saveRun: (record) =>

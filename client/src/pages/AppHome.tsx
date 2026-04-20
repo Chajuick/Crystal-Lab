@@ -48,7 +48,7 @@ export default function AppHome() {
                 <Button
                   className="rounded-full bg-[#10af29] text-white hover:bg-[#0d9823]"
                   onClick={() => {
-                    prepareMission(todayScenario.chapter, getTodayChallengeSeed());
+                    prepareMission(todayScenario.chapter, getTodayChallengeSeed(), "daily");
                     navigate("/app/play");
                   }}
                 >
@@ -118,7 +118,7 @@ export default function AppHome() {
               </div>
               <Button
                 onClick={() => {
-                  prepareMission(todayScenario.chapter, getTodayChallengeSeed());
+                  prepareMission(todayScenario.chapter, getTodayChallengeSeed(), "daily");
                   navigate("/app/play");
                 }}
                 className="w-full rounded-full bg-[#10af29] text-white hover:bg-[#0d9823]"
