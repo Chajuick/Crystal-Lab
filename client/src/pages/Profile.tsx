@@ -27,11 +27,38 @@ export default function Profile() {
   const { apiKey, save: saveApiKey } = useApiKey();
   const [keyInput, setKeyInput] = useState(apiKey);
   const [keySaved, setKeySaved] = useState(false);
+  const [keyValidating, setKeyValidating] = useState(false);
+  const [keyError, setKeyError] = useState<string | null>(null);
 
-  function handleSaveKey() {
-    saveApiKey(keyInput);
-    setKeySaved(true);
-    setTimeout(() => setKeySaved(false), 2000);
+  async function handleSaveKey() {
+    if (!keyInput.trim()) return;
+    setKeyValidating(true);
+    setKeyError(null);
+    try {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${keyInput.trim()}`,
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [{ role: "user", content: "hi" }],
+          max_tokens: 5,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: { message?: string } };
+        throw new Error(err?.error?.message ?? `오류 코드 ${res.status}`);
+      }
+      saveApiKey(keyInput.trim());
+      setKeySaved(true);
+      setTimeout(() => setKeySaved(false), 2000);
+    } catch (e) {
+      setKeyError(e instanceof Error ? e.message : "키 검증 실패");
+    } finally {
+      setKeyValidating(false);
+    }
   }
 
   useEffect(() => {
@@ -136,29 +163,34 @@ export default function Profile() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm leading-6 text-muted-foreground">
-                Gemini API 키를 등록하면 결과 리포트에서 AI 코치 피드백을 받을 수 있습니다.
+                Groq API 키를 등록하면 결과 리포트에서 AI 코치 피드백을 받을 수 있습니다.
                 키는 브라우저 로컬 저장소에만 저장됩니다.
               </p>
               <div className="rounded-[1.4rem] border border-border bg-muted p-4 text-xs text-muted-foreground leading-5">
-                무료 키 발급: <span className="font-mono">aistudio.google.com/app/apikey</span>
-                <br />무료 티어: 1,500 요청/일, 분당 15회 제한
+                무료 키 발급: <span className="font-mono">console.groq.com</span>
+                <br />완전 무료 · 하루 14,400 요청 · Llama 3.3 70B
               </div>
               <div className="flex gap-2">
                 <Input
                   type="password"
                   value={keyInput}
-                  onChange={(e) => setKeyInput(e.target.value)}
+                  onChange={(e) => { setKeyInput(e.target.value); setKeyError(null); }}
                   placeholder="AIza..."
                   className="rounded-full border-border font-mono text-sm"
+                  disabled={keyValidating}
                 />
                 <Button
                   onClick={handleSaveKey}
+                  disabled={keyValidating || !keyInput.trim()}
                   className={`shrink-0 rounded-full px-5 transition-colors ${keySaved ? "bg-[#10af29] text-white hover:bg-[#0d9823]" : "bg-foreground text-background hover:bg-foreground/90"}`}
                 >
-                  {keySaved ? <><Check className="mr-1.5 size-4" /> 저장됨</> : "저장"}
+                  {keyValidating ? "검증 중…" : keySaved ? <><Check className="mr-1.5 size-4" /> 저장됨</> : "검증 후 저장"}
                 </Button>
               </div>
-              {apiKey && (
+              {keyError && (
+                <p className="text-xs text-red-500">✕ {keyError}</p>
+              )}
+              {!keyError && apiKey && (
                 <p className="text-xs text-[#0a7a1c] dark:text-[#9bf5ad]">● API 키가 등록되어 있습니다.</p>
               )}
             </CardContent>
