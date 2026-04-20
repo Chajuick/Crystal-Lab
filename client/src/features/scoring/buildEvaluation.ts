@@ -25,12 +25,13 @@ export function buildEvaluation(input: {
   const sqlEval = evaluateSqlSubmission(input.sql, input.sqlResult, input.scenario, input.warehouse);
   const msgEval = evaluateMessageSubmission(input.message, input.scenario);
 
+  // 가중치: 세그먼트 정합성 최우선, 메시지 품질 2위, SQL 기술은 전제조건 수준
   const totalScore = clamp(
-    sqlEval.score.sqlAccuracy * 0.27 +
-      sqlEval.score.segmentFit * 0.25 +
-      sqlEval.score.sendingStrategy * 0.18 +
-      msgEval.score.messageQuality * 0.18 +
-      msgEval.score.channelFit * 0.12,
+    sqlEval.score.sqlAccuracy * 0.15 +
+      sqlEval.score.segmentFit * 0.30 +
+      sqlEval.score.sendingStrategy * 0.15 +
+      msgEval.score.messageQuality * 0.25 +
+      msgEval.score.channelFit * 0.15,
   );
 
   const summary = `${input.scenario.title} 미션에 대해 규칙 기반 평가를 완료했습니다. SQL과 메시지 모두 실무 관점에서 보수적으로 채점되었습니다.`;

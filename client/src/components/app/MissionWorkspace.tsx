@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { BarChart3, BrainCircuit, Loader2, Play, RefreshCw, WandSparkles } from "lucide-react";
+import { BarChart3, BrainCircuit, Loader2, Play, RefreshCw, WandSparkles, Lightbulb } from "lucide-react";
+import { GuidedSqlBuilder } from "@/components/app/GuidedSqlBuilder";
 import { requestAiCoachFeedback, type AiCoachResponse } from "@/ai/aiCoach";
 import { getStoredApiKey } from "@/lib/useApiKey";
 import { Badge } from "@/components/ui/badge";
@@ -7,10 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { buildEvaluation } from "@/features/scoring/buildEvaluation";
 import { evaluateSqlSubmission } from "@/features/sql-evaluation/evaluateSql";
 import { getCompanyById, generateScenario, getProductById, getStarterSql, getWarehouse } from "@/game-engine/scenarios";
@@ -22,6 +23,90 @@ const channelCopy = {
   alimtalk: "카카오 알림톡",
   friend_message: "카카오 플러스친구",
 } as const;
+
+const COLUMN_DESCRIPTIONS: Record<string, string> = {
+  // customers
+  customer_id: "고객 고유 ID",
+  customer_name: "고객 이름",
+  gender: "성별 (F: 여성, M: 남성, U: 미분류)",
+  age: "나이",
+  age_group: "연령대 (예: 20대, 30대)",
+  signup_date: "가입 일자",
+  city: "거주 도시",
+  membership_grade: "멤버십 등급 (BRONZE / SILVER / GOLD / VIP)",
+  app_installed: "앱 설치 여부 (1: 설치, 0: 미설치)",
+  push_opt_in: "앱푸시 수신 동의 (1: 동의, 0: 미동의) — 발송 전 필수 확인",
+  kakao_opt_in: "카카오 수신 동의 (1: 동의, 0: 미동의)",
+  marketing_opt_in: "마케팅 수신 동의 통합 (1: 동의)",
+  dormant_status: "휴면 고객 여부 (1: 휴면, 0: 활성)",
+  last_order_date: "마지막 주문 일자",
+  days_since_last_order: "마지막 주문 이후 경과 일수",
+  total_order_count: "전체 주문 수 (취소 제외)",
+  total_spent: "누적 결제 금액 원 (취소 제외)",
+  // sessions
+  session_token: "세션 고유 토큰",
+  last_session_at: "마지막 앱/웹 접속 시각",
+  session_count_7d: "최근 7일 세션 횟수",
+  session_count_30d: "최근 30일 세션 횟수",
+  avg_session_duration_sec: "평균 세션 지속 시간 (초)",
+  os_type: "디바이스 OS (iOS / Android / Web)",
+  app_version: "앱 버전",
+  // orders
+  order_id: "주문 고유 ID",
+  product_id: "상품 고유 ID",
+  category_id: "카테고리 ID",
+  category_name: "카테고리 이름",
+  ordered_at: "주문 일시",
+  order_amount: "주문 금액 (원)",
+  quantity: "주문 수량",
+  order_status: "주문 상태 (paid: 결제완료 / completed: 배송완료 / cancelled: 취소)",
+  // carts
+  cart_id: "장바구니 항목 ID",
+  added_at: "장바구니에 추가한 일시",
+  cart_status: "상태 (abandoned: 이탈 / converted: 구매전환 / active: 유지)",
+  // message_logs
+  log_id: "발송 로그 ID",
+  channel: "발송 채널 (app_push / alimtalk / friend_message)",
+  campaign_type: "캠페인 유형 (winback, cart_recovery 등)",
+  sent_at: "발송 일시",
+  clicked: "클릭 여부 (1: 클릭, 0: 미클릭)",
+  converted: "구매 전환 여부 (1: 전환, 0: 미전환)",
+  // product_catalog
+  brand_name: "브랜드 이름",
+  product_name: "상품명",
+  price: "상품 가격 (원)",
+  target_gender: "타겟 성별 (F / M / U)",
+  target_age_min: "타겟 최소 연령",
+  target_age_max: "타겟 최대 연령",
+  tags: "상품 태그 (쉼표 구분)",
+  repurchase_cycle_days: "평균 재구매 주기 (일)",
+  // customer_category_interest
+  interest_score: "카테고리 관심도 점수 (0~100)",
+  last_viewed_at: "마지막 카테고리 조회 일시",
+  last_clicked_at: "마지막 클릭 일시",
+  // campaign_history
+  campaign_id: "캠페인 고유 ID",
+  revenue_generated: "캠페인 발생 매출 (원)",
+  // coupon_eligibility
+  coupon_code: "쿠폰 코드",
+  discount_type: "할인 방식 (amount: 금액 / percent: 비율)",
+  discount_value: "할인 값 (discount_type 기준)",
+  valid_until: "쿠폰 유효 기한",
+  used: "쿠폰 사용 여부 (1: 사용, 0: 미사용)",
+  // wishlist_events
+  wishlist_id: "위시리스트 항목 ID",
+};
+
+function getHintByDifficulty(scenario: Parameters<typeof buildEvaluation>[0]["scenario"]): string {
+  const firstRequired = scenario.requiredRules[0];
+  if (scenario.difficulty <= 1) {
+    return firstRequired?.sqlHint ?? "-- 필수 조건을 WHERE 절에 추가하세요.";
+  }
+  if (scenario.difficulty === 2) {
+    return scenario.requiredRules.map((r) => `-- ${r.label}: ${r.sqlHint}`).join("\n");
+  }
+  return scenario.requiredRules.map((r) => `-- ${r.label}`).join("\n");
+}
 
 function buildZeroRowHint(params: {
   difficulty: number;
@@ -79,6 +164,7 @@ export function MissionWorkspace({
 
   const [tab, setTab] = useState("dataset");
   const [activeTable, setActiveTable] = useState<keyof typeof warehouse>("customers");
+  const [guidedMode, setGuidedMode] = useState(scenario.chapter === "foundation");
   const [sql, setSql] = useState(() => getStarterSql(scenario));
   const [messageTitle, setMessageTitle] = useState("");
   const [messageBody, setMessageBody] = useState("");
@@ -98,6 +184,7 @@ export function MissionWorkspace({
     setAiCoachFeedback(null);
     setAiCoachError(null);
     setTab("dataset");
+    setGuidedMode(scenario.chapter === "foundation");
     setMessageTitle(scenario.channel === "app_push" ? `${product.product_name}, 오늘 다시 확인해보세요` : `${product.product_name} 제안을 준비했습니다`);
     setMessageBody(
       scenario.channel === "app_push"
@@ -261,10 +348,17 @@ export function MissionWorkspace({
                   </div>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {tablePreview.columns.slice(0, 10).map((column) => (
-                    <Badge key={column} className="rounded-full border border-border bg-card text-muted-foreground">
-                      {column}
-                    </Badge>
+                  {tablePreview.columns.map((column) => (
+                    <Tooltip key={column}>
+                      <TooltipTrigger asChild>
+                        <Badge className="cursor-default rounded-full border border-border bg-card text-muted-foreground hover:border-[#10af29]/40 hover:text-foreground transition">
+                          {column}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        {COLUMN_DESCRIPTIONS[column] ?? column}
+                      </TooltipContent>
+                    </Tooltip>
                   ))}
                 </div>
               </div>
@@ -276,12 +370,23 @@ export function MissionWorkspace({
               <CardTitle className="text-xs uppercase tracking-[0.28em] text-foreground/50">Preview Rows</CardTitle>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[430px] rounded-[1.5rem] border border-border">
-                <Table>
+              <div className="h-[430px] overflow-auto rounded-[1.5rem] border border-border">
+                <Table className="min-w-max">
                   <TableHeader>
                     <TableRow>
                       {tablePreview.columns.map((column) => (
-                        <TableHead key={column}>{column}</TableHead>
+                        <TableHead key={column} className="whitespace-nowrap">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-default underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">
+                                {column}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              {COLUMN_DESCRIPTIONS[column] ?? column}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableHead>
                       ))}
                     </TableRow>
                   </TableHeader>
@@ -289,105 +394,155 @@ export function MissionWorkspace({
                     {tablePreview.rows.map((row, index) => (
                       <TableRow key={`${String(activeTable)}-${index}`}>
                         {tablePreview.columns.map((column) => (
-                          <TableCell key={column}>{String(row[column] ?? "-")}</TableCell>
+                          <TableCell key={column} className="whitespace-nowrap">{String(row[column] ?? "-")}</TableCell>
                         ))}
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-              </ScrollArea>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         {/* SQL tab */}
-        <TabsContent value="sql" className="grid gap-4 xl:grid-cols-[1.04fr_0.96fr]">
-          <Card className="border-border bg-card">
-            <CardHeader>
-              <CardTitle className="text-xs uppercase tracking-[0.28em] text-foreground/50">SQL Composer</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* SQL editor stays dark — code editors look better on dark background */}
-              <Textarea
-                value={sql}
-                onChange={(event) => setSql(event.target.value)}
-                className="min-h-[300px] rounded-[1.5rem] border-border bg-[#0d0d0d] font-mono text-sm leading-6 text-white placeholder:text-white/25"
-                placeholder="SELECT ..."
-              />
-              <div className="flex flex-wrap gap-2">
-                <Button onClick={handleRunSql} className="rounded-full bg-[#10af29] text-white hover:bg-[#0d9823]">
-                  <Play className="mr-2 size-4" /> SQL 실행
-                </Button>
-                <Button onClick={() => setSql(formatSql(sql))} variant="outline" className="rounded-full border-border">
-                  쿼리 정리
-                </Button>
-                <Button onClick={() => setSql(getStarterSql(scenario))} variant="outline" className="rounded-full border-border">
-                  예시 불러오기
-                </Button>
-                {playMode !== "chapter" && (
-                  <Button onClick={rollMission} variant="outline" className="rounded-full border-border">
-                    <RefreshCw className="mr-2 size-4" /> 다른 미션
-                  </Button>
-                )}
-                <Button
-                  onClick={() => setSql(`${sql}\n-- Hint: ${scenario.requiredRules[0]?.sqlHint ?? "필수 조건부터 반영하세요."}`)}
-                  variant="outline"
-                  className="rounded-full border-border"
-                >
-                  <WandSparkles className="mr-2 size-4" /> 힌트 추가
-                </Button>
+        <TabsContent value="sql" className="space-y-4">
+
+          {/* 입문: 가이드 모드 vs 자유 입력 토글 배너 */}
+          {scenario.chapter === "foundation" && (
+            <div className="flex items-center justify-between rounded-[1.3rem] border border-[#10af29]/25 bg-[#10af29]/6 px-5 py-3">
+              <div className="flex items-center gap-2">
+                <Lightbulb className="size-4 text-[#10af29]" />
+                <span className="text-sm font-medium text-foreground">입문 모드</span>
+                <span className="text-sm text-muted-foreground">
+                  {guidedMode ? "— 단계별 가이드가 SQL을 함께 만들어드립니다." : "— 자유 입력 모드로 전환됐습니다."}
+                </span>
               </div>
-            </CardContent>
-          </Card>
+              <button
+                onClick={() => setGuidedMode((v) => !v)}
+                className="text-xs text-[#0d9823] underline-offset-2 hover:underline dark:text-[#9bf5ad]"
+              >
+                {guidedMode ? "직접 입력으로 전환" : "가이드 모드로 돌아가기"}
+              </button>
+            </div>
+          )}
 
-          <Card className="border-border bg-card">
-            <CardHeader>
-              <CardTitle className="text-xs uppercase tracking-[0.28em] text-foreground/50">SQL Result</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-[1.4rem] border border-border bg-muted p-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">실행 결과</p>
-                  <p className="text-sm text-muted-foreground">{sqlResult?.rowCount ?? 0} rows</p>
-                </div>
-                <p className={`mt-3 text-sm ${sqlResult?.ok === false ? "text-destructive" : "text-muted-foreground"}`}>
-                  {sqlResult?.ok === false ? sqlResult.error : "대상자 수와 컬럼 구성을 기준으로 조건을 반복 보정해보세요."}
-                </p>
-              </div>
+          {/* 가이드 모드 (입문) */}
+          {scenario.chapter === "foundation" && guidedMode ? (
+            <GuidedSqlBuilder
+              scenario={scenario}
+              onComplete={(builtSql) => {
+                setSql(builtSql);
+                setGuidedMode(false);
+                handleRunSql();
+                setTab("sql");
+              }}
+              onSkip={() => setGuidedMode(false)}
+            />
+          ) : (
+            /* 자유 입력 모드 (모든 난이도) */
+            <div className="grid gap-4 xl:grid-cols-[1.04fr_0.96fr]">
+              <Card className="border-border bg-card">
+                <CardHeader>
+                  <CardTitle className="text-xs uppercase tracking-[0.28em] text-foreground/50">SQL Composer</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Textarea
+                    value={sql}
+                    onChange={(event) => setSql(event.target.value)}
+                    className="min-h-[300px] rounded-[1.5rem] border-border bg-[#0d0d0d] font-mono text-sm leading-6 text-white placeholder:text-white/25"
+                    placeholder="SELECT ..."
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={handleRunSql} className="rounded-full bg-[#10af29] text-white hover:bg-[#0d9823]">
+                      <Play className="mr-2 size-4" /> SQL 실행
+                    </Button>
+                    <Button onClick={() => setSql(formatSql(sql))} variant="outline" className="rounded-full border-border">
+                      쿼리 정리
+                    </Button>
+                    <Button onClick={() => setSql(getStarterSql(scenario))} variant="outline" className="rounded-full border-border">
+                      예시 불러오기
+                    </Button>
+                    {playMode !== "chapter" && (
+                      <Button onClick={rollMission} variant="outline" className="rounded-full border-border">
+                        <RefreshCw className="mr-2 size-4" /> 다른 미션
+                      </Button>
+                    )}
+                    <Button
+                      onClick={() => {
+                        const hint = getHintByDifficulty(scenario);
+                        setSql((prev) => `${prev}\n${hint}`);
+                      }}
+                      variant="outline"
+                      className="rounded-full border-border"
+                    >
+                      <WandSparkles className="mr-2 size-4" /> 힌트 추가
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
 
-              {zeroRowHint ? (
-                <div className={`rounded-[1.4rem] border p-4 ${zeroRowHint.tone === "warning" ? "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40" : "border-[#10af29]/20 bg-[#10af29]/6"}`}>
-                  <p className={`text-sm font-medium ${zeroRowHint.tone === "warning" ? "text-amber-900 dark:text-amber-300" : "text-[#0f7f24] dark:text-[#9bf5ad]"}`}>{zeroRowHint.title}</p>
-                  <p className={`mt-2 text-sm leading-6 ${zeroRowHint.tone === "warning" ? "text-amber-800/90 dark:text-amber-400/80" : "text-muted-foreground"}`}>{zeroRowHint.body}</p>
-                </div>
-              ) : null}
+              <Card className="border-border bg-card">
+                <CardHeader>
+                  <CardTitle className="text-xs uppercase tracking-[0.28em] text-foreground/50">SQL Result</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="rounded-[1.4rem] border border-border bg-muted p-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">실행 결과</p>
+                      <p className="text-sm text-muted-foreground">{sqlResult?.rowCount ?? 0} rows</p>
+                    </div>
+                    <p className={`mt-3 text-sm ${sqlResult?.ok === false ? "text-destructive" : "text-muted-foreground"}`}>
+                      {sqlResult?.ok === false ? sqlResult.error : "대상자 수와 컬럼 구성을 기준으로 조건을 반복 보정해보세요."}
+                    </p>
+                  </div>
 
-              <ScrollArea className="h-[300px] rounded-[1.5rem] border border-border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {(sqlResult?.columns ?? []).map((column) => (
-                        <TableHead key={column}>{column}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(sqlResult?.rows ?? []).slice(0, 10).map((row, rowIndex) => (
-                      <TableRow key={rowIndex}>
-                        {(sqlResult?.columns ?? []).map((column) => (
-                          <TableCell key={column}>{String(row[column] ?? "-")}</TableCell>
+                  {zeroRowHint ? (
+                    <div className={`rounded-[1.4rem] border p-4 ${zeroRowHint.tone === "warning" ? "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40" : "border-[#10af29]/20 bg-[#10af29]/6"}`}>
+                      <p className={`text-sm font-medium ${zeroRowHint.tone === "warning" ? "text-amber-900 dark:text-amber-300" : "text-[#0f7f24] dark:text-[#9bf5ad]"}`}>{zeroRowHint.title}</p>
+                      <p className={`mt-2 text-sm leading-6 ${zeroRowHint.tone === "warning" ? "text-amber-800/90 dark:text-amber-400/80" : "text-muted-foreground"}`}>{zeroRowHint.body}</p>
+                    </div>
+                  ) : null}
+
+                  <div className="h-[300px] overflow-auto rounded-[1.5rem] border border-border">
+                    <Table className="min-w-max">
+                      <TableHeader>
+                        <TableRow>
+                          {(sqlResult?.columns ?? []).map((column) => (
+                            <TableHead key={column} className="whitespace-nowrap">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="cursor-default underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">
+                                    {column}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  {COLUMN_DESCRIPTIONS[column] ?? column}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(sqlResult?.rows ?? []).slice(0, 10).map((row, rowIndex) => (
+                          <TableRow key={rowIndex}>
+                            {(sqlResult?.columns ?? []).map((column) => (
+                              <TableCell key={column} className="whitespace-nowrap">{String(row[column] ?? "-")}</TableCell>
+                            ))}
+                          </TableRow>
                         ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
+                      </TableBody>
+                    </Table>
+                  </div>
 
-              <Button onClick={() => setTab("message")} variant="outline" className="w-full rounded-full border-border">
-                메시지 작성으로 이동
-              </Button>
-            </CardContent>
-          </Card>
+                  <Button onClick={() => setTab("message")} variant="outline" className="w-full rounded-full border-border">
+                    메시지 작성으로 이동
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </TabsContent>
 
         {/* Message tab */}
