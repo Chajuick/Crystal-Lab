@@ -75,6 +75,61 @@ const templatePool: Array<{
     difficulty: 1,
     rewardMultiplier: 1,
   },
+  // ── Foundation Stage 2 (seed=1 → index 1) ────────────────────────────
+  {
+    chapter: "foundation",
+    title: "앱 설치 고객 첫 구매 유도",
+    objective: "앱이 설치돼 있고 푸시 수신에 동의한 활성 고객(휴면 아님)에게 첫 구매를 유도하는 앱푸시를 발송하세요.",
+    campaignType: "first_purchase",
+    channel: "app_push",
+    productMatcher: (product) => ["세럼", "크림", "비타민", "조명"].includes(product.category_name),
+    requiredRules: [
+      { label: "앱 설치 고객", sqlHint: "customers.app_installed = 1", keywords: ["app_installed"] },
+      { label: "푸시 수신 동의 고객", sqlHint: "customers.push_opt_in = 1", keywords: ["push_opt_in"] },
+      { label: "활성 고객 (휴면 아님)", sqlHint: "customers.dormant_status = 0", keywords: ["dormant_status"] },
+    ],
+    excludedRules: [{ label: "최근 7일 발송 이력 고객 제외", sqlHint: "message_logs.sent_at 기준 최근 7일", keywords: ["message_logs", "sent_at"] }],
+    bonusRules: [],
+    briefingTemplate: (company, product) => `${company.name}에서 ${product.product_name} 첫 구매 유도 앱푸시 캠페인을 요청했습니다. 앱이 설치되어 있고 푸시 수신 동의를 유지하며 휴면이 아닌 활성 고객만 대상으로 하고, 최근 7일 내 발송 이력이 있는 고객은 피로도 관리 차원에서 제외해야 합니다.`,
+    difficulty: 1,
+    rewardMultiplier: 1,
+  },
+  // ── Foundation Stage 3 (seed=2 → index 2) ────────────────────────────
+  {
+    chapter: "foundation",
+    title: "활성 고객 알림톡 혜택 안내",
+    objective: "카카오 수신 동의를 유지한 활성 고객에게 알림톡으로 혜택을 안내하세요. 최근 발송 고객은 피로도 관리를 위해 제외합니다.",
+    campaignType: "reactivation",
+    channel: "alimtalk",
+    productMatcher: (product) => ["크림", "세럼", "프로바이오틱스", "비타민"].includes(product.category_name),
+    requiredRules: [
+      { label: "카카오 수신 동의 고객", sqlHint: "customers.kakao_opt_in = 1", keywords: ["kakao_opt_in"] },
+      { label: "활성 고객 (휴면 아님)", sqlHint: "customers.dormant_status = 0", keywords: ["dormant_status"] },
+    ],
+    excludedRules: [{ label: "최근 5일 발송 이력 고객 제외", sqlHint: "message_logs.sent_at 기준 최근 5일", keywords: ["message_logs", "sent_at"] }],
+    bonusRules: [],
+    briefingTemplate: (company, product) => `${company.name}에서 ${product.product_name} 기본 혜택 안내 알림톡 캠페인을 요청했습니다. 카카오 수신 동의를 유지한 활성 고객에게 발송하며, 최근 5일 이내 메시지를 받은 고객은 제외해야 합니다.`,
+    difficulty: 1,
+    rewardMultiplier: 1,
+  },
+  // ── Foundation Stage 4 (seed=3 → index 3) ────────────────────────────
+  {
+    chapter: "foundation",
+    title: "우수 등급 친구톡 프로모션",
+    objective: "GOLD 또는 VIP 등급이면서 카카오 수신 동의를 유지한 고객에게 친구톡으로 프로모션을 안내하세요.",
+    campaignType: "vip_offer",
+    channel: "friend_message",
+    productMatcher: (product) => product.price > 30000,
+    requiredRules: [
+      { label: "GOLD 또는 VIP 등급 고객", sqlHint: "customers.membership_grade IN ('GOLD','VIP')", keywords: ["membership_grade"] },
+      { label: "카카오 수신 동의 고객", sqlHint: "customers.kakao_opt_in = 1", keywords: ["kakao_opt_in"] },
+    ],
+    excludedRules: [{ label: "최근 5일 발송 이력 고객 제외", sqlHint: "message_logs.sent_at 기준 최근 5일", keywords: ["message_logs", "sent_at"] }],
+    bonusRules: [],
+    briefingTemplate: (company, product) => `${company.name}에서 상위 등급 고객을 위한 ${product.product_name} 친구톡 프로모션을 요청했습니다. GOLD 또는 VIP 등급이면서 카카오 수신 동의를 유지한 고객만 선별하고, 최근 5일 이내 메시지를 받은 고객은 제외해야 합니다.`,
+    difficulty: 1,
+    rewardMultiplier: 1,
+  },
   {
     chapter: "practical",
     title: "재구매 리마인드 세그먼트",
@@ -218,6 +273,33 @@ export function getCompanyById(id: string) {
 export function getProductById(productId: number) {
   return warehouse.product_catalog.find((product) => product.product_id === productId) ?? warehouse.product_catalog[0];
 }
+
+export const CHAPTER_STAGES: Record<ChapterKey, Array<{ stageNum: number; seed: number; name: string; description: string }>> = {
+  foundation: [
+    { stageNum: 1, seed: 1, name: "앱 설치 고객 첫 구매 유도", description: "앱 설치 + 푸시 동의 + 활성 고객, JOIN 없이 WHERE만으로 세그먼트 완성" },
+    { stageNum: 2, seed: 2, name: "활성 고객 알림톡 혜택 안내", description: "카카오 동의 + 휴면 제외, 알림톡 채널의 기초 필터링" },
+    { stageNum: 3, seed: 3, name: "우수 등급 친구톡 프로모션", description: "멤버십 등급 IN 조건 + 카카오 동의, 친구톡 기본 타겟팅" },
+    { stageNum: 4, seed: 4, name: "첫 구매 유도 종합 세그먼트", description: "세션 JOIN + 구매 제외 조건까지, 입문 단계 종합 훈련" },
+  ],
+  practical: [
+    { stageNum: 1, seed: 1, name: "VIP 특별 혜택 캠페인", description: "상위 등급 선별 + 클릭 이력 기반 타겟팅 실무 적용" },
+    { stageNum: 2, seed: 2, name: "재구매 주기 리마인드", description: "구매 이력 JOIN + 날짜 범위 필터 + 발송 제외 조건" },
+    { stageNum: 3, seed: 3, name: "클릭 경험 기반 프로모션", description: "메시지 클릭 이력과 복합 제외 조건 처리" },
+    { stageNum: 4, seed: 4, name: "구매 이력 × 수신 동의 교차", description: "카테고리 구매 이력과 발송 피로도 관리 종합" },
+  ],
+  advanced: [
+    { stageNum: 1, seed: 1, name: "앱 재방문 촉진 세그먼트", description: "세션 빈도 기반 비활성 고객 + 채널별 발송 제외" },
+    { stageNum: 2, seed: 2, name: "장바구니 이탈 회수", description: "carts JOIN + 미구매 상품 NOT IN 제외 조건" },
+    { stageNum: 3, seed: 3, name: "세션 저조 재활성화", description: "다중 세션 조건과 채널 발송 이력 교차 필터링" },
+    { stageNum: 4, seed: 4, name: "장바구니 + 관심도 정밀 타겟", description: "이탈 조건 + 관심도 점수 결합한 고도화 세그먼트" },
+  ],
+  expert: [
+    { stageNum: 1, seed: 1, name: "휴면 직전 복귀 캠페인", description: "접속 빈도 + 구매 주기 결합, 복합 제외 조건 설계" },
+    { stageNum: 2, seed: 2, name: "구매 주기 이탈 방어", description: "60~180일 구매 이력 + 발송·전환 이력 다중 제외" },
+    { stageNum: 3, seed: 3, name: "전환 이력 × 수신 동의 최적화", description: "전환 성공 이력 제외 + 카카오/마케팅 동의 교차" },
+    { stageNum: 4, seed: 4, name: "쿠폰 × 관심도 고급 타겟", description: "쿠폰 미사용 + 관심도 상위 결합, 보너스 조건 종합" },
+  ],
+};
 
 export function getStarterSql(scenario: CampaignScenario) {
   const channelCondition =

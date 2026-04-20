@@ -638,9 +638,12 @@ export function MissionWorkspace({
                     <CardTitle className="text-xs uppercase tracking-[0.28em] text-foreground/50">아쉬운 점</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm leading-7 text-muted-foreground">
-                    {evaluation.sql.weaknesses.concat(evaluation.message.weaknesses).slice(0, 4).map((item) => (
-                      <p key={item}>• {item}</p>
-                    ))}
+                    {evaluation.sql.weaknesses.concat(evaluation.message.weaknesses).slice(0, 4).length > 0
+                      ? evaluation.sql.weaknesses.concat(evaluation.message.weaknesses).slice(0, 4).map((item) => (
+                          <p key={item}>• {item}</p>
+                        ))
+                      : <p className="text-[#10af29]">• 발견된 문제점이 없습니다. 훌륭한 캠페인입니다!</p>
+                    }
                   </CardContent>
                 </Card>
 
@@ -649,9 +652,12 @@ export function MissionWorkspace({
                     <CardTitle className="text-xs uppercase tracking-[0.28em] text-foreground/50">다음 개선 제안</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm leading-7 text-muted-foreground">
-                    {evaluation.sql.suggestions.concat(evaluation.message.suggestions).slice(0, 5).map((item) => (
-                      <p key={item}>• {item}</p>
-                    ))}
+                    {evaluation.sql.suggestions.concat(evaluation.message.suggestions).slice(0, 5).length > 0
+                      ? evaluation.sql.suggestions.concat(evaluation.message.suggestions).slice(0, 5).map((item) => (
+                          <p key={item}>• {item}</p>
+                        ))
+                      : <p>• AI 코치 피드백을 받아 더 심층적인 개선 제안을 확인해보세요.</p>
+                    }
                   </CardContent>
                 </Card>
               </div>

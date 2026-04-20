@@ -1,150 +1,215 @@
 import { useEffect, useMemo, useRef } from "react";
-import { LockKeyhole, Star } from "lucide-react";
+import { CheckCircle2, ChevronRight, LockKeyhole, Star } from "lucide-react";
 import { useLocation } from "wouter";
 import { AppChrome } from "@/components/app/AppChrome";
 import { MissionWorkspace } from "@/components/app/MissionWorkspace";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { chapters } from "@/game-engine/scenarios";
+import { CHAPTER_STAGES, chapters } from "@/game-engine/scenarios";
 import { useLocalSession } from "@/lib/useLocalSession";
 import type { ChapterKey } from "@/shared/types/domain";
 import { useRetentionLabStore } from "@/storage/useRetentionLabStore";
 
-function getStars(progress: number) {
-  if (progress >= 80) return 3;
-  if (progress >= 45) return 2;
-  if (progress >= 15) return 1;
+function getStars(prog: number) {
+  if (prog >= 80) return 3;
+  if (prog >= 45) return 2;
+  if (prog >= 15) return 1;
   return 0;
 }
+
+const DIFFICULTY_BARS: Record<ChapterKey, number> = {
+  foundation: 1,
+  practical: 2,
+  advanced: 3,
+  expert: 4,
+};
 
 export default function Chapters() {
   const [, navigate] = useLocation();
   const { isLoggedIn } = useLocalSession();
-  const { progress, prepareMission, playMode, selectedChapter } = useRetentionLabStore();
+  const { progress, prepareMission, playMode, selectedChapter, missionSeed } = useRetentionLabStore();
   const workspaceRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isLoggedIn) {
-      navigate("/");
-    }
+    if (!isLoggedIn) navigate("/");
   }, [isLoggedIn, navigate]);
 
-  const chapterStages = useMemo(
+  const chapterList = useMemo(
     () =>
-      chapters.map((chapter) => {
-        const currentProgress = progress.chapterProgress[chapter.key as ChapterKey];
-        const unlocked = progress.totalScore >= chapter.minScore;
-        return {
-          ...chapter,
-          unlocked,
-          progress: currentProgress,
-          stars: getStars(currentProgress),
-          stages: [
-            { id: `${chapter.key}-1`, title: `${chapter.label} 1`, description: "핵심 필수 조건을 빠짐없이 반영하는 단계", difficulty: 1 },
-            { id: `${chapter.key}-2`, title: `${chapter.label} 2`, description: "제외 조건과 채널 리스크를 함께 다루는 단계", difficulty: 2 },
-            { id: `${chapter.key}-3`, title: `${chapter.label} 3`, description: "정밀 타겟팅과 메시지 설계를 함께 맞추는 단계", difficulty: 3 },
-          ],
-        };
-      }),
+      chapters.map((ch) => ({
+        ...ch,
+        unlocked: progress.totalScore >= ch.minScore,
+        currentProgress: progress.chapterProgress[ch.key as ChapterKey],
+        stars: getStars(progress.chapterProgress[ch.key as ChapterKey]),
+      })),
     [progress.chapterProgress, progress.totalScore],
   );
 
-  function handleStartChapter(key: ChapterKey) {
-    prepareMission(key, undefined, "chapter");
+  function getStageStatus(chapterKey: ChapterKey, seed: number) {
+    const records = progress.records.filter(
+      (r) => r.chapter === chapterKey && r.missionId.split("-")[1] === String(seed),
+    );
+    if (records.length === 0) return { attempted: false, bestScore: null, cleared: false };
+    const bestScore = Math.max(...records.map((r) => r.score));
+    return { attempted: true, bestScore, cleared: bestScore >= 60 };
+  }
+
+  function handleStartStage(chapter: ChapterKey, seed: number) {
+    prepareMission(chapter, seed, "chapter");
     setTimeout(() => {
       workspaceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
+    }, 60);
   }
 
-  if (!isLoggedIn) {
-    return null;
-  }
+  const activeStageNum = useMemo(() => {
+    if (playMode !== "chapter") return null;
+    return CHAPTER_STAGES[selectedChapter]?.find((s) => s.seed === missionSeed)?.stageNum ?? null;
+  }, [playMode, selectedChapter, missionSeed]);
 
-  const activeChapter = playMode === "chapter" ? chapterStages.find((c) => c.key === selectedChapter) : null;
+  if (!isLoggedIn) return null;
+
+  const isPlaying = playMode === "chapter";
 
   return (
-    <AppChrome title="챕터" description="챕터는 정식 성장형 스테이지 모드입니다. 잠금 상태, 별 개수, 난이도, 진행률을 확인하고 원하는 챕터로 진입할 수 있습니다.">
+    <AppChrome
+      title="챕터"
+      description="챕터별로 4개의 스테이지를 플레이합니다. 클리어한 스테이지는 언제든 재도전할 수 있습니다."
+    >
       <div className="space-y-4">
-        {chapterStages.map((chapter) => (
-          <Card key={chapter.key} className={`border-bg-card ${playMode === "chapter" && selectedChapter === chapter.key ? "border-[#10af29]/40 ring-1 ring-[#10af29]/20" : "border-border bg-card"}`}>
-            <CardContent className="grid gap-5 p-5 lg:grid-cols-[0.9fr_1.1fr] lg:p-6">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-[11px] uppercase tracking-[0.28em] text-foreground/50">{chapter.label}</p>
-                  <Badge className={`rounded-full border ${chapter.unlocked ? "border-[#10af29]/35 bg-[#10af29]/10 text-[#0d9823] dark:text-[#9bf5ad]" : "border-border bg-muted text-muted-foreground"}`}>
-                    {chapter.unlocked ? "진입 가능" : `해금 점수 ${chapter.minScore}`}
-                  </Badge>
-                  {playMode === "chapter" && selectedChapter === chapter.key && (
-                    <Badge className="rounded-full border border-[#10af29]/35 bg-[#10af29]/10 text-[#0d9823] dark:text-[#9bf5ad]">진행 중</Badge>
-                  )}
-                </div>
-                <h2 className="mt-4 text-3xl font-semibold tracking-[-0.05em] text-foreground">{chapter.description}</h2>
-                <p className="mt-3 text-sm leading-7 text-muted-foreground">보너스 목표: {chapter.bonus}</p>
+        {chapterList.map((chapter) => {
+          const diffBars = DIFFICULTY_BARS[chapter.key as ChapterKey];
+          const stages = CHAPTER_STAGES[chapter.key as ChapterKey];
+          const isActiveChapter = isPlaying && selectedChapter === chapter.key;
 
-                <div className="mt-6 grid gap-3 md:grid-cols-3">
-                  <div className="rounded-[1.4rem] border border-border bg-muted p-4">
-                    <p className="text-[11px] uppercase tracking-[0.24em] text-foreground/50">진행률</p>
-                    <p className="mt-2 text-2xl font-semibold tracking-[-0.05em] text-foreground">{chapter.progress}%</p>
-                    <Progress value={chapter.progress} className="mt-3 h-2 [&>div]:bg-[#10af29]" />
-                  </div>
-                  <div className="rounded-[1.4rem] border border-border bg-muted p-4">
-                    <p className="text-[11px] uppercase tracking-[0.24em] text-foreground/50">별 개수</p>
-                    <div className="mt-3 flex gap-2">
-                      {[0, 1, 2].map((index) => (
-                        <Star key={index} className={`size-5 ${index < chapter.stars ? "fill-[#10af29] text-[#10af29]" : "text-foreground/20"}`} />
-                      ))}
+          return (
+            <Card
+              key={chapter.key}
+              className={`border-border bg-card transition ${isActiveChapter ? "border-[#10af29]/35 ring-1 ring-[#10af29]/15" : ""}`}
+            >
+              <CardContent className="p-5 lg:p-6">
+                {/* ── Chapter header ── */}
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-[11px] uppercase tracking-[0.28em] text-foreground/50">{chapter.label}</p>
+                      <Badge
+                        className={`rounded-full border text-[11px] ${
+                          chapter.unlocked
+                            ? "border-[#10af29]/35 bg-[#10af29]/10 text-[#0d9823] dark:text-[#9bf5ad]"
+                            : "border-border bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {chapter.unlocked ? "진입 가능" : `해금 ${chapter.minScore}점`}
+                      </Badge>
+                      {isActiveChapter && activeStageNum !== null && (
+                        <Badge className="rounded-full border border-[#10af29]/35 bg-[#10af29]/10 text-[11px] text-[#0d9823] dark:text-[#9bf5ad]">
+                          스테이지 {activeStageNum} 진행 중
+                        </Badge>
+                      )}
                     </div>
+                    <p className="mt-2 text-sm leading-7 text-muted-foreground">{chapter.description}</p>
                   </div>
-                  <div className={`rounded-[1.4rem] border p-4 ${chapter.unlocked ? "border-[#10af29]/25 bg-[#10af29]/8" : "border-border bg-muted"}`}>
-                    <p className="text-[11px] uppercase tracking-[0.24em] text-foreground/50">상태</p>
-                    <p className={`mt-2 text-lg font-medium ${chapter.unlocked ? "text-[#0d9823] dark:text-[#9bf5ad]" : "text-muted-foreground"}`}>
-                      {chapter.unlocked ? "플레이 가능" : "잠금"}
-                    </p>
-                  </div>
-                </div>
 
-                <Button
-                  disabled={!chapter.unlocked}
-                  onClick={() => handleStartChapter(chapter.key as ChapterKey)}
-                  className="mt-6 rounded-full bg-[#10af29] text-white hover:bg-[#0d9823] disabled:opacity-40"
-                >
-                  {playMode === "chapter" && selectedChapter === chapter.key ? "이 챕터 다시 시작" : chapter.unlocked ? "이 챕터 플레이" : "점수 달성 후 해금"}
-                </Button>
-              </div>
-
-              <div className="grid gap-3">
-                {chapter.stages.map((stage) => (
-                  <div key={stage.id} className="rounded-[1.5rem] border border-border p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-lg font-medium tracking-[-0.03em] text-foreground">{stage.title}</p>
-                        <p className="mt-2 text-sm leading-7 text-muted-foreground">{stage.description}</p>
+                  {/* Mini stats */}
+                  <div className="flex shrink-0 flex-wrap items-center gap-5">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-foreground/50">진행률</p>
+                      <p className="mt-1 text-xl font-semibold tracking-[-0.04em] text-foreground">{chapter.currentProgress}%</p>
+                      <Progress value={chapter.currentProgress} className="mt-1.5 h-1.5 w-20 [&>div]:bg-[#10af29]" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-foreground/50">별</p>
+                      <div className="mt-2 flex gap-1">
+                        {[0, 1, 2].map((i) => (
+                          <Star key={i} className={`size-4 ${i < chapter.stars ? "fill-[#10af29] text-[#10af29]" : "text-foreground/15"}`} />
+                        ))}
                       </div>
-                      {!chapter.unlocked ? <LockKeyhole className="size-5 text-foreground/30" /> : null}
                     </div>
-                    <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-                      <span>난이도</span>
-                      <div className="flex gap-1">
-                        {Array.from({ length: 3 }).map((_, index) => (
-                          <span key={index} className={`h-2.5 w-8 rounded-full ${index < stage.difficulty ? "bg-[#10af29]" : "bg-foreground/10"}`} />
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-foreground/50">난이도</p>
+                      <div className="mt-2 flex gap-1">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                          <span key={i} className={`h-2 w-5 rounded-full ${i < diffBars ? "bg-[#10af29]" : "bg-foreground/10"}`} />
                         ))}
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                </div>
 
-        {/* 챕터 워크스페이스 — 챕터 선택 시 인라인으로 표시 */}
-        {activeChapter && (
+                {/* ── Stage grid ── */}
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {stages.map((stage) => {
+                    const { attempted, bestScore, cleared } = getStageStatus(chapter.key as ChapterKey, stage.seed);
+                    const isThisStage = isActiveChapter && missionSeed === stage.seed;
+
+                    return (
+                      <button
+                        key={stage.stageNum}
+                        onClick={() => chapter.unlocked && handleStartStage(chapter.key as ChapterKey, stage.seed)}
+                        disabled={!chapter.unlocked}
+                        className={`group rounded-[1.5rem] border p-4 text-left transition-all ${
+                          isThisStage
+                            ? "border-[#10af29]/50 bg-[#10af29]/8"
+                            : cleared
+                              ? "border-[#10af29]/20 bg-card hover:border-[#10af29]/40"
+                              : attempted
+                                ? "border-amber-200/60 bg-amber-50/30 hover:border-amber-300 dark:border-amber-900/40 dark:bg-amber-950/20"
+                                : "border-border bg-muted hover:border-[#10af29]/30"
+                        } disabled:cursor-not-allowed disabled:opacity-40`}
+                      >
+                        {/* Top: stage number + status */}
+                        <div className="flex items-start justify-between gap-1">
+                          <span className="rounded-full border border-border bg-card px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
+                            {stage.stageNum}
+                          </span>
+                          {isThisStage && (
+                            <span className="rounded-full border border-[#10af29]/35 bg-[#10af29]/10 px-2 py-0.5 text-[10px] text-[#0d9823] dark:text-[#9bf5ad]">
+                              진행 중
+                            </span>
+                          )}
+                          {cleared && !isThisStage && (
+                            <span className="flex items-center gap-1 text-[11px] font-medium text-[#0d9823] dark:text-[#9bf5ad]">
+                              <CheckCircle2 className="size-3" />
+                              {bestScore}점
+                            </span>
+                          )}
+                          {attempted && !cleared && !isThisStage && (
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400">도전 중</span>
+                          )}
+                          {!attempted && !chapter.unlocked && (
+                            <LockKeyhole className="size-3.5 text-foreground/25" />
+                          )}
+                        </div>
+
+                        {/* Stage name + desc */}
+                        <p className={`mt-2.5 text-sm font-medium leading-5 ${isThisStage ? "text-[#0d9823] dark:text-[#9bf5ad]" : "text-foreground"}`}>
+                          {stage.name}
+                        </p>
+                        <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{stage.description}</p>
+
+                        {/* Hover CTA */}
+                        {chapter.unlocked && (
+                          <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+                            <span>{cleared ? "다시 도전" : attempted ? "계속하기" : "시작하기"}</span>
+                            <ChevronRight className="size-3" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+
+        {/* ── Workspace ── */}
+        {isPlaying && (
           <div ref={workspaceRef} className="scroll-mt-4">
             <MissionWorkspace
-              heading={`${activeChapter.label} · 챕터 모드`}
-              subheading={`${activeChapter.description} 지금 선택한 챕터의 미션을 바로 수행합니다.`}
+              heading={`${chapterList.find((c) => c.key === selectedChapter)?.label ?? ""} · 스테이지 ${activeStageNum ?? ""}`}
+              subheading="데이터 탐색부터 SQL 실행, 메시지 작성, 결과 리포트까지 한 흐름으로 수행합니다."
             />
           </div>
         )}

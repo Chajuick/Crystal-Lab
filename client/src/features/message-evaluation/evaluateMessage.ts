@@ -117,6 +117,14 @@ export function evaluateMessageSubmission(
       weaknesses.push("알림톡 권장 길이를 초과해 가독성이 떨어집니다.");
       suggestions.push("130자 이내로 핵심 안내와 혜택만 남겨보세요.");
     }
+    if (!hasUrgency) {
+      weaknesses.push("긴박감 표현이 없어 즉시 행동 유도력이 다소 약합니다.");
+      suggestions.push("'오늘까지', '이번 주 한정' 같은 기간 표현을 추가하면 클릭률이 높아집니다.");
+    }
+    if (!hasPersonalization) {
+      weaknesses.push("개인화 요소가 없어 수신자 맞춤 느낌이 부족합니다.");
+      suggestions.push("'{이름}님', '고객님이 관심 가진' 같은 표현으로 개인화 효과를 높여보세요.");
+    }
   }
 
   const channelGuide: Record<string, string> = {

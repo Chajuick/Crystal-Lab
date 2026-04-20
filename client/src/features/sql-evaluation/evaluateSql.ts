@@ -120,6 +120,15 @@ export function evaluateSqlSubmission(sql: string, result: SqlRunResult, scenari
     suggestions.push("활동 기간, 구매 빈도, 세션 횟수 등 추가 필터로 모수를 좁혀보세요.");
   }
 
+  if (result.ok && bonusHit === 0) {
+    weaknesses.push("보너스 조건을 하나도 활용하지 않았습니다. 세그먼트를 더 정교하게 만들 수 있습니다.");
+    suggestions.push("미션 브리핑의 보너스 조건(구매 주기, 세션 빈도 등)을 추가해 타겟 정밀도를 높여보세요.");
+  }
+  if (result.ok && !hasRecentSendExclusion(n)) {
+    weaknesses.push("최근 발송 이력 고객 제외 조건이 없습니다. 중복 발송 리스크가 있습니다.");
+    suggestions.push("message_logs 또는 campaign_history 테이블로 최근 수신자를 제외하면 수신자 피로도를 낮출 수 있습니다.");
+  }
+
   return {
     score: {
       sqlAccuracy: Math.max(5, Math.min(100, Math.round(sqlAccuracy))),
