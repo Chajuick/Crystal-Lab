@@ -1,26 +1,40 @@
 {
+  "id": "/",
   "name": "수정 연구소",
-  "short_name": "수정",
+  "short_name": "수정랩",
   "description": "CRM 마케터를 위한 SQL 세그먼트 설계, 메시지 작성, 결과 해석 시뮬레이터 웹앱",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "lang": "ko",
-  "theme_color": "#22c55e",
-  "background_color": "#22c55e",
+  "theme_color": "#10af29",
+  "background_color": "#f7f7f4",
+  "categories": ["education", "productivity"],
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/web-app-manifest-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/web-app-manifest-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/web-app-manifest-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
