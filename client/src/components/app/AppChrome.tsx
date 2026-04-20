@@ -106,18 +106,18 @@ export function AppChrome({ title, description, children }: AppChromeProps) {
                 <h1 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-foreground">{title}</h1>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{description}</p>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 {toggleTheme && (
-                  <Button variant="outline" size="sm" className="rounded-full border-border" onClick={toggleTheme}>
+                  <button
+                    onClick={toggleTheme}
+                    className="rounded-full border border-border bg-muted p-2 text-muted-foreground transition hover:text-foreground"
+                  >
                     {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-                  </Button>
+                  </button>
                 )}
-                <div className="rounded-full border border-border bg-muted px-4 py-2 text-sm text-muted-foreground">
-                  현재 사용자: <span className="font-medium text-foreground">{username}</span>
+                <div className="rounded-full border border-border bg-muted px-3 py-1.5 text-xs text-muted-foreground lg:hidden">
+                  {username}
                 </div>
-                <Button variant="outline" className="rounded-full border-border" onClick={handleLogout}>
-                  <LogOut className="mr-2 size-4 text-[#10af29]" /> 로그아웃
-                </Button>
               </div>
             </div>
           </header>
@@ -125,18 +125,6 @@ export function AppChrome({ title, description, children }: AppChromeProps) {
         </main>
       </div>
 
-      <div className="fixed inset-x-0 bottom-[4.75rem] z-40 px-3 lg:hidden">
-        <div className="mx-auto flex max-w-2xl justify-between">
-          {toggleTheme && (
-            <Button size="sm" variant="outline" className="rounded-full border-border bg-card/96 backdrop-blur" onClick={toggleTheme}>
-              {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-            </Button>
-          )}
-          <Button size="sm" variant="outline" className="rounded-full border-border bg-card/96 backdrop-blur" onClick={handleLogout}>
-            <LogOut className="mr-2 size-4 text-[#10af29]" /> 로그아웃
-          </Button>
-        </div>
-      </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/96 px-3 py-2 backdrop-blur lg:hidden">
         <div className="mx-auto grid max-w-2xl grid-cols-4 gap-2">
